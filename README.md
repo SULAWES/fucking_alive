@@ -11,6 +11,8 @@
 - Dockerfile
 - Docker Compose
 - `.env.example`
+- SQLAlchemy 与 Alembic 基础配置
+- 初始数据库迁移与种子数据
 
 ## 本地启动
 
@@ -26,7 +28,13 @@ cp .env.example .env
 docker compose up --build
 ```
 
-3. 验证 API：
+3. 执行数据库迁移：
+
+```bash
+docker compose run --rm api alembic upgrade head
+```
+
+4. 验证 API：
 
 ```bash
 curl http://localhost:8000/healthz
@@ -52,10 +60,9 @@ README.md
 
 ## 下一阶段
 
-阶段 1 将补充：
+阶段 2 将补充：
 
-- SQLAlchemy
-- Alembic
-- PostgreSQL 数据表
-- 配置持久化
-
+- 飞书 webhook
+- 消息接收
+- `/alive`
+- `/help`

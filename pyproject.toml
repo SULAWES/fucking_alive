@@ -22,5 +22,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["app"]
+include-package-data = true
 
+[tool.setuptools.packages.find]
+include = ["app*"]
