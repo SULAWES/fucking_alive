@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     alert_scan_interval_minutes: int = 10
     admin_feishu_user_id: str = ""
     admin_token: str = "change_me"
+    feishu_app_id: str = ""
+    feishu_app_secret: str = ""
+    feishu_verification_token: str = ""
+    feishu_encrypt_key: str = ""
+    feishu_domain: str = "https://open.feishu.cn"
+    feishu_long_connection_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
