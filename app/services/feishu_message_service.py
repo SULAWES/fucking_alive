@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.models.message import Message
 from app.db.models.user import User
 from app.db.session import SessionLocal
+from app.llm import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -17,17 +18,20 @@ HELP_TEXT = (
     "可用命令：\n"
     "/help 查看帮助\n"
     "/alive 手动报平安\n\n"
-    "当前阶段只提供固定回复，LLM 对话将在阶段 3 接入。"
+    "当前阶段已接入 OpenAI 兼容格式对话。\n"
+    "Anthropic / Gemini 适配器仍为占位。"
 )
 
 ALIVE_TEXT = "已记录本次存活心跳，72 小时计时已重置。"
-PLACEHOLDER_TEXT = "已收到你的消息。当前阶段仅提供固定回复，LLM 对话将在阶段 3 接入。"
 UNSUPPORTED_TEXT = "当前阶段仅支持文本消息。"
+LLM_FAILURE_TEXT = "暂时无法获取模型回复，请稍后再试。"
+PROVIDER_PLACEHOLDER_TEXT = "当前 provider（{provider}）仍为占位实现，尚未接入真实调用。"
 
 
 class FeishuMessageService:
-    def __init__(self, client: lark.Client) -> None:
+    def __init__(self, client: lark.Client, llm_service: LLMService | None = None) -> None:
         self._client = client
+        self._llm_service = llm_service or LLMService()
 
     def handle_message_receive(self, data: lark.im.v1.P2ImMessageReceiveV1) -> None:
         event = data.event
@@ -78,7 +82,7 @@ class FeishuMessageService:
             )
             session.add(incoming_record)
 
-            reply_text = _build_reply_text(message.message_type, text_content)
+            direct_reply = _build_direct_reply(message.message_type, text_content)
             try:
                 session.commit()
             except IntegrityError:
@@ -86,14 +90,21 @@ class FeishuMessageService:
                 logger.info("skip duplicated feishu message on commit: %s", message.message_id)
                 return
 
+            reply_provider = None
+            reply_model = None
+            if direct_reply is not None:
+                reply_text = direct_reply
+            else:
+                reply_text, reply_provider, reply_model = self._generate_llm_reply(session, user.id)
+
             reply_response = self._reply_text(message.message_id, reply_text)
             if reply_response is None:
                 return
 
             assistant_record = Message(
                 user_id=user.id,
-                provider=None,
-                model=None,
+                provider=reply_provider,
+                model=reply_model,
                 role="assistant",
                 chat_id=message.chat_id,
                 chat_type=message.chat_type,
@@ -107,6 +118,26 @@ class FeishuMessageService:
             )
             session.add(assistant_record)
             session.commit()
+
+    def _generate_llm_reply(self, session: Session, user_id) -> tuple[str, str | None, str | None]:
+        runtime_config = self._llm_service.get_runtime_config(session)
+        try:
+            response = self._llm_service.generate_reply_for_user(session, user_id)
+            return response.text, response.provider, response.model
+        except NotImplementedError:
+            logger.warning(
+                "llm provider is still placeholder: provider=%s model=%s user_id=%s",
+                runtime_config.provider,
+                runtime_config.model,
+                user_id,
+            )
+            return (
+                PROVIDER_PLACEHOLDER_TEXT.format(provider=runtime_config.provider),
+                runtime_config.provider,
+                runtime_config.model,
+            )
+        except Exception:
+            return LLM_FAILURE_TEXT, runtime_config.provider, runtime_config.model
 
     def _reply_text(self, message_id: str, text: str) -> lark.im.v1.ReplyMessageResponse | None:
         request = (
@@ -165,7 +196,7 @@ def _parse_message_content(raw_content: str | None) -> tuple[dict, str]:
     return {"raw": raw_content}, str(parsed).strip()
 
 
-def _build_reply_text(message_type: str | None, text: str) -> str:
+def _build_direct_reply(message_type: str | None, text: str) -> str | None:
     if message_type != "text":
         return UNSUPPORTED_TEXT
 
@@ -174,7 +205,7 @@ def _build_reply_text(message_type: str | None, text: str) -> str:
         return ALIVE_TEXT
     if normalized == "/help":
         return HELP_TEXT
-    return PLACEHOLDER_TEXT
+    return None
 
 
 def _serialize_event(data: lark.im.v1.P2ImMessageReceiveV1) -> dict:
@@ -208,4 +239,3 @@ def _serialize_event(data: lark.im.v1.P2ImMessageReceiveV1) -> dict:
             },
         },
     }
-

@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     feishu_encrypt_key: str = ""
     feishu_domain: str = "https://open.feishu.cn"
     feishu_long_connection_enabled: bool = False
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    anthropic_api_key: str = ""
+    anthropic_base_url: str = "https://api.anthropic.com"
+    gemini_api_key: str = ""
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
 
     model_config = SettingsConfigDict(
         env_file=".env",
