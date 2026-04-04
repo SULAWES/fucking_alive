@@ -1,18 +1,18 @@
 # Alive Agent
 
-存活提醒 Agent 的最小项目骨架。
+存活提醒 Agent，运行在 `Docker Compose + PostgreSQL + Python` 上，接入飞书长连接与 OpenAI 兼容 LLM，并支持未活跃邮件告警。
 
 ## 当前状态
 
-当前仅完成阶段 0：
+当前已完成阶段 0 到阶段 4：
 
-- Python 项目骨架
-- FastAPI 入口与健康检查
-- Dockerfile
-- Docker Compose
-- `.env.example`
-- SQLAlchemy 与 Alembic 基础配置
-- 初始数据库迁移与种子数据
+- Python 项目骨架与 Docker Compose
+- SQLAlchemy / Alembic 与初始数据库迁移
+- 飞书长连接接收消息
+- `/alive`、`/help` 与消息落库
+- OpenAI 兼容格式 LLM 接入
+- SMTP 邮件发送与未活跃告警扫描
+- `/admin/test-alert` 最小管理接口
 
 ## 本地启动
 
@@ -22,7 +22,7 @@
 cp .env.example .env
 ```
 
-2. 启动基础服务：
+2. 启动服务：
 
 ```bash
 docker compose up --build
@@ -46,12 +46,38 @@ curl http://localhost:8000/healthz
 {"status":"ok","app_env":"dev"}
 ```
 
+5. 单独执行数据库迁移：
+
+```bash
+docker compose run --rm api alembic upgrade head
+```
+
+6. 触发测试邮件接口：
+
+```bash
+curl -X POST http://localhost:8000/admin/test-alert \
+  -H 'Authorization: Bearer change_me' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "recipients": ["someone@example.com"],
+    "subject": "test mail",
+    "body": "test body"
+  }'
+```
+
+注意：
+- 真实发信前需要在 `.env` 中配置 `SMTP_HOST`、`SMTP_PORT`、`SMTP_USERNAME`、`SMTP_PASSWORD`、`SMTP_FROM`
+- 如使用 `465` 端口，一般应设置 `SMTP_USE_SSL=true`、`SMTP_USE_TLS=false`
+
 ## 当前目录
 
 ```text
 app/
   api/
+  alerts/
   core/
+  llm/
+  mail/
 docker/
 docker-compose.yml
 pyproject.toml
@@ -60,9 +86,8 @@ README.md
 
 ## 下一阶段
 
-阶段 2 将补充：
+阶段 5 将补充：
 
-- 飞书 webhook
-- 消息接收
-- `/alive`
-- `/help`
+- HTTP 管理接口
+- 运行时配置读写
+- 联系人与邮件模板管理

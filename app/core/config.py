@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     anthropic_base_url: str = "https://api.anthropic.com"
     gemini_api_key: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
+    alert_scheduler_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
