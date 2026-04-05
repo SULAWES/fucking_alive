@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-当前已完成阶段 0 到阶段 4：
+当前已完成阶段 0 到阶段 5：
 
 - Python 项目骨架与 Docker Compose
 - SQLAlchemy / Alembic 与初始数据库迁移
@@ -12,7 +12,7 @@
 - `/alive`、`/help` 与消息落库
 - OpenAI 兼容格式 LLM 接入
 - SMTP 邮件发送与未活跃告警扫描
-- `/admin/test-alert` 最小管理接口
+- HTTP 管理接口：`settings`、`contacts`、`email-template`、`test-alert`
 
 ## 本地启动
 
@@ -86,8 +86,8 @@ README.md
 
 ## 下一阶段
 
-阶段 5 将补充：
+阶段 6 将补充：
 
-- HTTP 管理接口
-- 运行时配置读写
-- 联系人与邮件模板管理
+- 飞书内配置管理
+- 联系人与模板命令
+- 二次确认流转
