@@ -10,17 +10,10 @@ from sqlalchemy.orm import Session
 from app.db.models.message import Message
 from app.db.models.user import User
 from app.db.session import SessionLocal
+from app.services.feishu_admin_service import FeishuAdminService
 from app.llm import LLMService
 
 logger = logging.getLogger(__name__)
-
-HELP_TEXT = (
-    "可用命令：\n"
-    "/help 查看帮助\n"
-    "/alive 手动报平安\n\n"
-    "当前阶段已接入 OpenAI 兼容格式对话。\n"
-    "Anthropic / Gemini 适配器仍为占位。"
-)
 
 ALIVE_TEXT = "已记录本次存活心跳，72 小时计时已重置。"
 UNSUPPORTED_TEXT = "当前阶段仅支持文本消息。"
@@ -32,6 +25,7 @@ class FeishuMessageService:
     def __init__(self, client: lark.Client, llm_service: LLMService | None = None) -> None:
         self._client = client
         self._llm_service = llm_service or LLMService()
+        self._admin_service = FeishuAdminService()
 
     def handle_message_receive(self, data: lark.im.v1.P2ImMessageReceiveV1) -> None:
         event = data.event
@@ -82,7 +76,12 @@ class FeishuMessageService:
             )
             session.add(incoming_record)
 
-            direct_reply = _build_direct_reply(message.message_type, text_content)
+            direct_reply = self._build_direct_reply(
+                session,
+                sender_feishu_user_id=canonical_sender_id,
+                message_type=message.message_type,
+                text=text_content,
+            )
             try:
                 session.commit()
             except IntegrityError:
@@ -118,6 +117,20 @@ class FeishuMessageService:
             )
             session.add(assistant_record)
             session.commit()
+
+    def _build_direct_reply(self, session: Session, sender_feishu_user_id: str, message_type: str | None, text: str) -> str | None:
+        if message_type != "text":
+            return UNSUPPORTED_TEXT
+
+        normalized = text.strip()
+        if normalized == "/alive":
+            return ALIVE_TEXT
+        if normalized == "/help":
+            return self._admin_service.build_help_text(session, sender_feishu_user_id)
+        command_reply = self._admin_service.handle_command(session, sender_feishu_user_id, normalized)
+        if command_reply is not None:
+            return command_reply
+        return None
 
     def _generate_llm_reply(self, session: Session, user_id) -> tuple[str, str | None, str | None]:
         runtime_config = self._llm_service.get_runtime_config(session)
@@ -194,19 +207,6 @@ def _parse_message_content(raw_content: str | None) -> tuple[dict, str]:
         return parsed, text.strip() if isinstance(text, str) else ""
 
     return {"raw": raw_content}, str(parsed).strip()
-
-
-def _build_direct_reply(message_type: str | None, text: str) -> str | None:
-    if message_type != "text":
-        return UNSUPPORTED_TEXT
-
-    normalized = text.strip()
-    if normalized == "/alive":
-        return ALIVE_TEXT
-    if normalized == "/help":
-        return HELP_TEXT
-    return None
-
 
 def _serialize_event(data: lark.im.v1.P2ImMessageReceiveV1) -> dict:
     return {
