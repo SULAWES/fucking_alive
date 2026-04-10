@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     configure_logging(settings.log_level)
+    if not settings.alert_scheduler_enabled:
+        logger.info("alert scheduler disabled by configuration")
+        return
+
     scheduler = BlockingScheduler(timezone=settings.app_timezone)
     service = AlertingService()
 

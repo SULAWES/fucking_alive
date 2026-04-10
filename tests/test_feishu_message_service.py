@@ -1,12 +1,13 @@
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from app.db.models.message import Message
 from app.db.models.user import User
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal, SessionLocal as RealSessionLocal
 from app.llm import ChatResponse
 from app.services.admin_config_service import update_settings
-from app.services.feishu_message_service import ALIVE_TEXT, FeishuMessageService
+from app.services.feishu_message_service import ALIVE_TEXT, AssistantMessagePayload, FeishuMessageService
 from tests.helpers import FakeFeishuClient, build_message_event, reset_database
 
 
@@ -159,6 +160,68 @@ class FeishuMessageServiceTests(unittest.TestCase):
         service.handle_message_receive(build_message_event("om_slash_chat", "/contact list", sender_id="ou_slash_chat"))
 
         self.assertEqual(fake_llm.scenarios, ["chat"])
+
+    def test_assistant_message_persistence_retries_with_fresh_session(self) -> None:
+        client = FakeFeishuClient()
+        service = FeishuMessageService(client, llm_service=FakeLLMService())
+
+        with SessionLocal() as session:
+            user = User(
+                feishu_user_id="ou_retry_user",
+                timezone="Asia/Shanghai",
+                status="ACTIVE",
+                last_seen_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+            )
+            session.add(user)
+            session.commit()
+            user_id = user.id
+
+        payload = AssistantMessagePayload(
+            user_id=user_id,
+            provider="openai",
+            model="fake-model",
+            role="assistant",
+            chat_id="chat-retry",
+            chat_type="p2p",
+            message_type="text",
+            sender_user_id=None,
+            sender_open_id=None,
+            sender_union_id=None,
+            content={"text": "retry assistant reply"},
+            raw_event=None,
+            feishu_message_id="om_retry_assistant",
+        )
+
+        class FailingSession:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def add(self, _obj):
+                return None
+
+            def commit(self):
+                raise RuntimeError("transient commit failure")
+
+        class SessionFactory:
+            def __init__(self):
+                self.calls = 0
+
+            def __call__(self):
+                self.calls += 1
+                if self.calls == 1:
+                    return FailingSession()
+                return RealSessionLocal()
+
+        factory = SessionFactory()
+        with patch("app.services.feishu_message_service.SessionLocal", factory):
+            service._persist_assistant_message(payload)
+
+        with SessionLocal() as session:
+            records = session.query(Message).filter(Message.feishu_message_id == "om_retry_assistant").all()
+            self.assertEqual(len(records), 1)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import lark_oapi as lark
@@ -19,6 +20,23 @@ ALIVE_TEXT = "已记录本次存活心跳，72 小时计时已重置。"
 UNSUPPORTED_TEXT = "当前阶段仅支持文本消息。"
 LLM_FAILURE_TEXT = "暂时无法获取模型回复，请稍后再试。"
 PROVIDER_PLACEHOLDER_TEXT = "当前 provider（{provider}）仍为占位实现，尚未接入真实调用。"
+
+
+@dataclass(frozen=True)
+class AssistantMessagePayload:
+    user_id: uuid.UUID
+    provider: str | None
+    model: str | None
+    role: str
+    chat_id: str | None
+    chat_type: str | None
+    message_type: str
+    sender_user_id: str | None
+    sender_open_id: str | None
+    sender_union_id: str | None
+    content: dict
+    raw_event: dict | None
+    feishu_message_id: str | None
 
 
 class FeishuMessageService:
@@ -109,7 +127,7 @@ class FeishuMessageService:
             if reply_response is None:
                 return
 
-            assistant_record = Message(
+            assistant_payload = AssistantMessagePayload(
                 user_id=user.id,
                 provider=reply_provider,
                 model=reply_model,
@@ -124,8 +142,7 @@ class FeishuMessageService:
                 raw_event=None,
                 feishu_message_id=reply_response.data.message_id if reply_response.data else None,
             )
-            session.add(assistant_record)
-            session.commit()
+            self._persist_assistant_message(assistant_payload)
 
     def _build_direct_reply(self, session: Session, sender_feishu_user_id: str, message_type: str | None, text: str) -> str | None:
         if message_type != "text":
@@ -202,6 +219,56 @@ class FeishuMessageService:
             extra={"message_id": message_id, "event_type": "im.message.reply"},
         )
         return None
+
+    def _persist_assistant_message(self, payload: AssistantMessagePayload) -> None:
+        last_error: Exception | None = None
+        for attempt in (1, 2):
+            try:
+                with SessionLocal() as session:
+                    session.add(
+                        Message(
+                            user_id=payload.user_id,
+                            provider=payload.provider,
+                            model=payload.model,
+                            role=payload.role,
+                            chat_id=payload.chat_id,
+                            chat_type=payload.chat_type,
+                            message_type=payload.message_type,
+                            sender_user_id=payload.sender_user_id,
+                            sender_open_id=payload.sender_open_id,
+                            sender_union_id=payload.sender_union_id,
+                            content=payload.content,
+                            raw_event=payload.raw_event,
+                            feishu_message_id=payload.feishu_message_id,
+                        )
+                    )
+                    session.commit()
+                return
+            except Exception as exc:
+                last_error = exc
+                logger.exception(
+                    "failed to persist assistant message: attempt=%s user_id=%s feishu_message_id=%s",
+                    attempt,
+                    payload.user_id,
+                    payload.feishu_message_id,
+                    extra={
+                        "user_id": str(payload.user_id),
+                        "message_id": payload.feishu_message_id or "-",
+                        "event_type": "assistant_message_persist",
+                    },
+                )
+
+        if last_error is not None:
+            logger.error(
+                "assistant message persistence exhausted retries: user_id=%s feishu_message_id=%s",
+                payload.user_id,
+                payload.feishu_message_id,
+                extra={
+                    "user_id": str(payload.user_id),
+                    "message_id": payload.feishu_message_id or "-",
+                    "event_type": "assistant_message_persist",
+                },
+            )
 
 
 def _message_exists(session: Session, message_id: str | None) -> bool:
