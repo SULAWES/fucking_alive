@@ -52,7 +52,15 @@ class FeishuMessageService:
 
         with SessionLocal() as session:
             if _message_exists(session, message.message_id):
-                logger.info("skip duplicated feishu message: %s", message.message_id)
+                logger.info(
+                    "skip duplicated feishu message: %s",
+                    message.message_id,
+                    extra={
+                        "message_id": message.message_id,
+                        "chat_id": message.chat_id,
+                        "event_type": data.header.event_type if data.header else "im.message.receive_v1",
+                    },
+                )
                 return
 
             user = _get_or_create_user(session, canonical_sender_id, now)
@@ -175,6 +183,7 @@ class FeishuMessageService:
             response.code,
             response.msg,
             response.get_log_id(),
+            extra={"message_id": message_id, "event_type": "im.message.reply"},
         )
         return None
 

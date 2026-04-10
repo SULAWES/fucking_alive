@@ -99,7 +99,11 @@ class AlertingService:
                 .all()
             )
             if not contacts:
-                logger.warning("skip overdue user without enabled contacts: user_id=%s", user.id)
+                logger.warning(
+                    "skip overdue user without enabled contacts: user_id=%s",
+                    user.id,
+                    extra={"user_id": str(user.id), "event_type": ALERT_EVENT_TYPE, "delivery_status": "SKIPPED"},
+                )
                 skipped += 1
                 continue
 
@@ -228,6 +232,12 @@ class AlertingService:
                 user.id,
                 contact.id,
                 contact.email,
+                extra={
+                    "user_id": str(user.id),
+                    "contact_id": str(contact.id),
+                    "event_type": ALERT_EVENT_TYPE,
+                    "delivery_status": "FAILED",
+                },
             )
             return "FAILED"
 
@@ -239,6 +249,12 @@ class AlertingService:
             user.id,
             contact.id,
             contact.email,
+            extra={
+                "user_id": str(user.id),
+                "contact_id": str(contact.id),
+                "event_type": ALERT_EVENT_TYPE,
+                "delivery_status": "SENT",
+            },
         )
         return "SENT"
 

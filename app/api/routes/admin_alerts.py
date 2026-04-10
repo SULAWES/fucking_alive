@@ -90,7 +90,7 @@ def test_alert(request: TestAlertRequest) -> dict[str, int | str]:
 
 @router.get("/settings", dependencies=[Depends(require_admin_token)], response_model=SettingsResponse)
 def get_settings(session: Session = Depends(get_db_session)) -> SettingsResponse:
-    app_settings = _get_or_create_app_settings(session)
+    app_settings = get_or_create_app_settings(session)
     return _serialize_settings(app_settings)
 
 
@@ -151,7 +151,7 @@ def put_contacts(request: ContactsPutRequest, session: Session = Depends(get_db_
 
 @router.get("/email-template", dependencies=[Depends(require_admin_token)], response_model=EmailTemplateResponse)
 def get_email_template(session: Session = Depends(get_db_session)) -> EmailTemplateResponse:
-    template = _get_or_create_email_template(session)
+    template = get_or_create_email_template(session)
     return _serialize_email_template(template)
 
 

@@ -42,6 +42,7 @@ def _run_alert_scan(service: AlertingService) -> None:
         result.delivered,
         result.failed,
         result.skipped,
+        extra={"event_type": "alert_scan", "delivery_status": "DONE"},
     )
 
 

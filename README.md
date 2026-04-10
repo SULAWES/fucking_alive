@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-当前已完成阶段 0 到阶段 6：
+当前已完成阶段 0 到阶段 7：
 
 - Python 项目骨架与 Docker Compose
 - SQLAlchemy / Alembic 与初始数据库迁移
@@ -14,6 +14,7 @@
 - SMTP 邮件发送与未活跃告警扫描
 - HTTP 管理接口：`settings`、`contacts`、`email-template`、`test-alert`
 - 飞书内配置管理：联系人命令、模板命令、二次确认流转
+- 阶段 7 回归测试、结构化日志与运维说明
 
 ## 本地启动
 
@@ -70,6 +71,32 @@ curl -X POST http://localhost:8000/admin/test-alert \
 - 真实发信前需要在 `.env` 中配置 `SMTP_HOST`、`SMTP_PORT`、`SMTP_USERNAME`、`SMTP_PASSWORD`、`SMTP_FROM`
 - 如使用 `465` 端口，一般应设置 `SMTP_USE_SSL=true`、`SMTP_USE_TLS=false`
 
+## 测试
+
+在容器内运行当前回归测试：
+
+```bash
+docker compose up -d postgres
+docker run --rm \
+  --network fucking_alive_default \
+  --env-file .env \
+  -e PYTHONPATH=/app \
+  -v "$PWD":/app \
+  -w /app \
+  fucking_alive-api \
+  python -m unittest discover -s tests -v
+```
+
+## 运维注意事项
+
+- `api` 容器负责 FastAPI 与飞书长连接
+- `scheduler` 容器负责未活跃扫描
+- 生产环境建议使用 `docker compose up -d`
+- 修改 `.env` 中的飞书、SMTP、LLM 凭据后需要重启相关容器
+- 日志已带基础上下文字段，可直接通过 `docker logs` 排查
+- 建议定期备份 PostgreSQL 数据卷
+- `app_settings.admin_feishu_user_id` 应设置为你的真实飞书账号，否则飞书内管理员命令不会生效
+
 ## 当前目录
 
 ```text
@@ -87,8 +114,8 @@ README.md
 
 ## 下一阶段
 
-阶段 7 将补充：
+阶段 8 将补充：
 
-- 稳定性与验收
-- 回归测试与边界用例
-- 部署与运维整理
+- LLM Prompt 完善
+- 命令纠错体验增强
+- Prompt 版本与回滚策略

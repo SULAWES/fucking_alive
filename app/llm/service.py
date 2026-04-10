@@ -66,6 +66,12 @@ class LLMService:
                 runtime_config.model,
                 latency_ms,
                 user_id,
+                extra={
+                    "provider": runtime_config.provider,
+                    "model": runtime_config.model,
+                    "user_id": str(user_id),
+                    "latency_ms": latency_ms,
+                },
             )
             raise
 
@@ -75,6 +81,12 @@ class LLMService:
             response.model,
             response.latency_ms,
             user_id,
+            extra={
+                "provider": response.provider,
+                "model": response.model,
+                "user_id": str(user_id),
+                "latency_ms": response.latency_ms,
+            },
         )
         return response
 
