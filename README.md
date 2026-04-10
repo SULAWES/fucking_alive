@@ -1,8 +1,8 @@
-# Alive Agent
+# fucking_alive
 
 ## 项目介绍
 
-`Alive Agent` 是一个部署在云服务器上的飞书私聊机器人。
+`fucking_alive Agent` 是一个部署在云服务器上的飞书私聊机器人。
 
 它的核心能力很简单：
 - 接收用户在飞书中的私聊消息
