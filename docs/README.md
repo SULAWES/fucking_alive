@@ -4,7 +4,7 @@
 
 当前包含：
 
-- [configuration.md](/home/heavenlysu/fucking_alive/docs/configuration.md)
+- [configuration.md](configuration.md)
   - 飞书应用配置
   - `.env` 配置项说明
   - HTTP 管理接口可调项
