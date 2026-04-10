@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     default_llm_provider: str = "openai"
     default_llm_model: str = "gpt-4.1-mini"
     chat_context_messages: int = 10
+    chat_prompt_version: str = "chat_v2"
+    command_repair_prompt_version: str = "command_repair_v1"
+    command_repair_enabled: bool = True
     alert_default_hours: int = 72
     alert_scan_interval_minutes: int = 10
     admin_feishu_user_id: str = ""

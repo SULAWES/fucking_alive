@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-当前已完成阶段 0 到阶段 7：
+当前已完成阶段 0 到阶段 7，并已进入阶段 8 的第一批增强：
 
 - Python 项目骨架与 Docker Compose
 - SQLAlchemy / Alembic 与初始数据库迁移
@@ -15,6 +15,7 @@
 - HTTP 管理接口：`settings`、`contacts`、`email-template`、`test-alert`
 - 飞书内配置管理：联系人命令、模板命令、二次确认流转
 - 阶段 7 回归测试、结构化日志与运维说明
+- Prompt 版本化、命令纠错场景拆分、运行时开关与回滚能力
 
 ## 本地启动
 
@@ -112,10 +113,29 @@ pyproject.toml
 README.md
 ```
 
-## 下一阶段
+## 文档
 
-阶段 8 将补充：
+- [docs/README.md](/home/heavenlysu/fucking_alive/docs/README.md)
+- [docs/configuration.md](/home/heavenlysu/fucking_alive/docs/configuration.md)
 
-- LLM Prompt 完善
-- 命令纠错体验增强
-- Prompt 版本与回滚策略
+## 阶段 8 进展
+
+当前已完成：
+
+- `chat_v1` / `chat_v2` 两个聊天 Prompt 版本
+- `command_repair_v1` 命令纠错 Prompt
+- `command_repair_v1` 的少量 few-shot 示例
+- 运行时设置项：
+  - `chat_prompt_version`
+  - `command_repair_prompt_version`
+  - `command_repair_enabled`
+- 未知斜杠命令可按开关在“命令纠错”和“普通聊天”之间回退
+- Prompt 已收紧为纯文本输出，避免飞书文本消息中的 Markdown 渲染问题
+- Prompt 场景与版本进入结构化日志
+- Prompt 样例回归集与单元测试
+- 已完成真实飞书联调，对比验证 `command_repair_enabled=true/false` 两种行为
+
+后续仍可继续：
+
+- 记录真实联调效果与回滚结论
+- 视需要增加更多 Prompt 版本

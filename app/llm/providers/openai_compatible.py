@@ -55,6 +55,8 @@ class OpenAICompatibleChatProvider:
         return ChatResponse(
             provider=self.provider_name,
             model=response_model,
+            scenario=request.scenario,
+            prompt_version=request.prompt_version,
             text=text,
             latency_ms=latency_ms,
             raw=data,

@@ -4,6 +4,8 @@ import logging
 LOG_CONTEXT_FIELDS = (
     "provider",
     "model",
+    "scenario",
+    "prompt_version",
     "user_id",
     "contact_id",
     "message_id",
@@ -27,7 +29,7 @@ def configure_logging(log_level: str = "INFO") -> None:
     handler.setFormatter(
         ContextFormatter(
             "%(asctime)s %(levelname)s %(name)s %(message)s "
-            "provider=%(provider)s model=%(model)s user_id=%(user_id)s "
+            "provider=%(provider)s model=%(model)s scenario=%(scenario)s prompt_version=%(prompt_version)s user_id=%(user_id)s "
             "contact_id=%(contact_id)s message_id=%(message_id)s chat_id=%(chat_id)s "
             "event_type=%(event_type)s delivery_status=%(delivery_status)s latency_ms=%(latency_ms)s"
         )

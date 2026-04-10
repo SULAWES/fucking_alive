@@ -102,7 +102,8 @@ class FeishuMessageService:
             if direct_reply is not None:
                 reply_text = direct_reply
             else:
-                reply_text, reply_provider, reply_model = self._generate_llm_reply(session, user.id)
+                scenario = self._select_llm_scenario(session, text_content)
+                reply_text, reply_provider, reply_model = self._generate_llm_reply(session, user.id, scenario=scenario)
 
             reply_response = self._reply_text(message.message_id, reply_text)
             if reply_response is None:
@@ -140,17 +141,24 @@ class FeishuMessageService:
             return command_reply
         return None
 
-    def _generate_llm_reply(self, session: Session, user_id) -> tuple[str, str | None, str | None]:
+    def _generate_llm_reply(self, session: Session, user_id, *, scenario: str) -> tuple[str, str | None, str | None]:
         runtime_config = self._llm_service.get_runtime_config(session)
         try:
-            response = self._llm_service.generate_reply_for_user(session, user_id)
+            response = self._llm_service.generate_reply_for_user(session, user_id, scenario=scenario)
             return response.text, response.provider, response.model
         except NotImplementedError:
             logger.warning(
-                "llm provider is still placeholder: provider=%s model=%s user_id=%s",
+                "llm provider is still placeholder: provider=%s model=%s scenario=%s user_id=%s",
                 runtime_config.provider,
                 runtime_config.model,
+                scenario,
                 user_id,
+                extra={
+                    "provider": runtime_config.provider,
+                    "model": runtime_config.model,
+                    "scenario": scenario,
+                    "user_id": str(user_id),
+                },
             )
             return (
                 PROVIDER_PLACEHOLDER_TEXT.format(provider=runtime_config.provider),
@@ -159,6 +167,14 @@ class FeishuMessageService:
             )
         except Exception:
             return LLM_FAILURE_TEXT, runtime_config.provider, runtime_config.model
+
+    def _select_llm_scenario(self, session: Session, text: str) -> str:
+        if not text.strip().startswith("/"):
+            return "chat"
+        runtime_config = self._llm_service.get_runtime_config(session)
+        if getattr(runtime_config, "command_repair_enabled", True):
+            return "command_repair"
+        return "chat"
 
     def _reply_text(self, message_id: str, text: str) -> lark.im.v1.ReplyMessageResponse | None:
         request = (
@@ -216,6 +232,7 @@ def _parse_message_content(raw_content: str | None) -> tuple[dict, str]:
         return parsed, text.strip() if isinstance(text, str) else ""
 
     return {"raw": raw_content}, str(parsed).strip()
+
 
 def _serialize_event(data: lark.im.v1.P2ImMessageReceiveV1) -> dict:
     return {

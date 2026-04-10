@@ -102,6 +102,9 @@ def reset_database() -> None:
             default_llm_model="gpt-4.1-mini",
             alert_default_hours=72,
             chat_context_messages=10,
+            chat_prompt_version="chat_v2",
+            command_repair_prompt_version="command_repair_v1",
+            command_repair_enabled=True,
             admin_feishu_user_id="",
         )
 

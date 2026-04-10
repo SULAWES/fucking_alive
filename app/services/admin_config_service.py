@@ -6,6 +6,7 @@ from app.db.models.app_settings import AppSettings
 from app.db.models.contact import Contact
 from app.db.models.email_template import EmailTemplate
 from app.db.models.user import User
+from app.llm import get_supported_prompt_versions
 from app.mail import TemplateValidationError, validate_alert_template
 
 ALLOWED_PROVIDERS = {"openai", "anthropic", "gemini"}
@@ -25,6 +26,9 @@ class AdminSettingsData:
     default_llm_model: str
     alert_default_hours: int
     chat_context_messages: int
+    chat_prompt_version: str
+    command_repair_prompt_version: str
+    command_repair_enabled: bool
     admin_feishu_user_id: str | None
 
 
@@ -57,6 +61,9 @@ def get_or_create_app_settings(session) -> AppSettings:
         default_llm_model=settings.default_llm_model,
         alert_default_hours=settings.alert_default_hours,
         chat_context_messages=settings.chat_context_messages,
+        chat_prompt_version=settings.chat_prompt_version,
+        command_repair_prompt_version=settings.command_repair_prompt_version,
+        command_repair_enabled=settings.command_repair_enabled,
         admin_feishu_user_id=settings.admin_feishu_user_id or None,
     )
     session.add(app_settings)
@@ -71,6 +78,9 @@ def serialize_settings(app_settings: AppSettings) -> AdminSettingsData:
         default_llm_model=app_settings.default_llm_model,
         alert_default_hours=app_settings.alert_default_hours,
         chat_context_messages=app_settings.chat_context_messages,
+        chat_prompt_version=app_settings.chat_prompt_version,
+        command_repair_prompt_version=app_settings.command_repair_prompt_version,
+        command_repair_enabled=app_settings.command_repair_enabled,
         admin_feishu_user_id=app_settings.admin_feishu_user_id,
     )
 
@@ -82,6 +92,9 @@ def update_settings(
     default_llm_model: str | None = None,
     alert_default_hours: int | None = None,
     chat_context_messages: int | None = None,
+    chat_prompt_version: str | None = None,
+    command_repair_prompt_version: str | None = None,
+    command_repair_enabled: bool | None = None,
     admin_feishu_user_id: str | None = None,
 ) -> AppSettings:
     app_settings = get_or_create_app_settings(session)
@@ -103,6 +116,23 @@ def update_settings(
 
     if chat_context_messages is not None:
         app_settings.chat_context_messages = chat_context_messages
+
+    if chat_prompt_version is not None:
+        version = chat_prompt_version.strip().lower()
+        allowed = get_supported_prompt_versions("chat")
+        if version not in allowed:
+            raise ValueError(f"chat_prompt_version must be one of: {', '.join(allowed)}.")
+        app_settings.chat_prompt_version = version
+
+    if command_repair_prompt_version is not None:
+        version = command_repair_prompt_version.strip().lower()
+        allowed = get_supported_prompt_versions("command_repair")
+        if version not in allowed:
+            raise ValueError(f"command_repair_prompt_version must be one of: {', '.join(allowed)}.")
+        app_settings.command_repair_prompt_version = version
+
+    if command_repair_enabled is not None:
+        app_settings.command_repair_enabled = command_repair_enabled
 
     if admin_feishu_user_id is not None:
         app_settings.admin_feishu_user_id = admin_feishu_user_id.strip() or None

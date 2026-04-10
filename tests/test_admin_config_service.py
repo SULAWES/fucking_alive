@@ -19,6 +19,21 @@ class AdminConfigServiceTests(unittest.TestCase):
                 self.assertEqual(runtime.provider, provider)
                 self.assertEqual(runtime.model, f"{provider}-model")
 
+    def test_prompt_runtime_settings_are_persisted(self) -> None:
+        llm_service = LLMService()
+        with SessionLocal() as session:
+            update_settings(
+                session,
+                chat_prompt_version="chat_v1",
+                command_repair_prompt_version="command_repair_v1",
+                command_repair_enabled=False,
+            )
+            runtime = llm_service.get_runtime_config(session)
+
+        self.assertEqual(runtime.chat_prompt_version, "chat_v1")
+        self.assertEqual(runtime.command_repair_prompt_version, "command_repair_v1")
+        self.assertFalse(runtime.command_repair_enabled)
+
 
 if __name__ == "__main__":
     unittest.main()

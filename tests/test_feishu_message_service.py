@@ -11,13 +11,27 @@ from tests.helpers import FakeFeishuClient, build_message_event, reset_database
 
 
 class FakeLLMService:
-    def get_runtime_config(self, session):
-        return SimpleNamespace(provider="openai", model="fake-model", context_messages=10)
+    def __init__(self, *, command_repair_enabled: bool = True) -> None:
+        self.scenarios: list[str] = []
+        self.command_repair_enabled = command_repair_enabled
 
-    def generate_reply_for_user(self, session, user_id):
+    def get_runtime_config(self, session):
+        return SimpleNamespace(
+            provider="openai",
+            model="fake-model",
+            context_messages=10,
+            chat_prompt_version="chat_v2",
+            command_repair_prompt_version="command_repair_v1",
+            command_repair_enabled=self.command_repair_enabled,
+        )
+
+    def generate_reply_for_user(self, session, user_id, *, scenario="chat"):
+        self.scenarios.append(scenario)
         return ChatResponse(
             provider="openai",
             model="fake-model",
+            scenario=scenario,
+            prompt_version="test_prompt_v1",
             text="这是测试 LLM 回复。",
             latency_ms=12,
             raw=None,
@@ -26,9 +40,16 @@ class FakeLLMService:
 
 class PlaceholderLLMService:
     def get_runtime_config(self, session):
-        return SimpleNamespace(provider="gemini", model="placeholder-model", context_messages=10)
+        return SimpleNamespace(
+            provider="gemini",
+            model="placeholder-model",
+            context_messages=10,
+            chat_prompt_version="chat_v2",
+            command_repair_prompt_version="command_repair_v1",
+            command_repair_enabled=True,
+        )
 
-    def generate_reply_for_user(self, session, user_id):
+    def generate_reply_for_user(self, session, user_id, *, scenario="chat"):
         raise NotImplementedError("placeholder")
 
 
@@ -118,6 +139,26 @@ class FeishuMessageServiceTests(unittest.TestCase):
             self.assertEqual(assistant.provider, "gemini")
             self.assertEqual(assistant.model, "placeholder-model")
             self.assertIn("占位实现", assistant.content["text"])
+
+    def test_unknown_slash_command_uses_command_repair_scenario(self) -> None:
+        fake_llm = FakeLLMService()
+        client = FakeFeishuClient()
+        service = FeishuMessageService(client, llm_service=fake_llm)
+        service.handle_message_receive(build_message_event("om_slash_unknown", "/contact list", sender_id="ou_slash"))
+
+        self.assertEqual(fake_llm.scenarios, ["command_repair"])
+
+    def test_unknown_slash_command_falls_back_to_chat_when_command_repair_disabled(self) -> None:
+        fake_llm = FakeLLMService(command_repair_enabled=False)
+        client = FakeFeishuClient()
+        service = FeishuMessageService(client, llm_service=fake_llm)
+
+        with SessionLocal() as session:
+            update_settings(session, command_repair_enabled=False)
+
+        service.handle_message_receive(build_message_event("om_slash_chat", "/contact list", sender_id="ou_slash_chat"))
+
+        self.assertEqual(fake_llm.scenarios, ["chat"])
 
 
 if __name__ == "__main__":

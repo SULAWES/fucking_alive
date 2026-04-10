@@ -36,6 +36,9 @@ class SettingsResponse(BaseModel):
     default_llm_model: str
     alert_default_hours: int
     chat_context_messages: int
+    chat_prompt_version: str
+    command_repair_prompt_version: str
+    command_repair_enabled: bool
     admin_feishu_user_id: str | None
 
 
@@ -44,6 +47,9 @@ class SettingsPatchRequest(BaseModel):
     default_llm_model: str | None = None
     alert_default_hours: int | None = Field(default=None, ge=1)
     chat_context_messages: int | None = Field(default=None, ge=1, le=100)
+    chat_prompt_version: str | None = None
+    command_repair_prompt_version: str | None = None
+    command_repair_enabled: bool | None = None
     admin_feishu_user_id: str | None = None
 
 
@@ -103,6 +109,9 @@ def patch_settings(request: SettingsPatchRequest, session: Session = Depends(get
             default_llm_model=request.default_llm_model,
             alert_default_hours=request.alert_default_hours,
             chat_context_messages=request.chat_context_messages,
+            chat_prompt_version=request.chat_prompt_version,
+            command_repair_prompt_version=request.command_repair_prompt_version,
+            command_repair_enabled=request.command_repair_enabled,
             admin_feishu_user_id=request.admin_feishu_user_id,
         )
     except ValueError as exc:
@@ -171,6 +180,9 @@ def _serialize_settings(app_settings) -> SettingsResponse:
         default_llm_model=data.default_llm_model,
         alert_default_hours=data.alert_default_hours,
         chat_context_messages=data.chat_context_messages,
+        chat_prompt_version=data.chat_prompt_version,
+        command_repair_prompt_version=data.command_repair_prompt_version,
+        command_repair_enabled=data.command_repair_enabled,
         admin_feishu_user_id=data.admin_feishu_user_id,
     )
 
